@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: smartpark-ops-dashboard
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATA_SOURCE
+        value: demo
+      - key: COOKIE_SECURE
+        value: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: KatyH
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
