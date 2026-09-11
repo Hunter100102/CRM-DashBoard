@@ -13,7 +13,7 @@ app.set('trust proxy',1);
 app.use(helmet({contentSecurityPolicy:false}));
 app.use(express.json({limit:'1mb'}));
 app.use(express.urlencoded({extended:false}));
-const secureCookie = String(process.env.COOKIE_SECURE || 'false').toLowerCase() === 'true';
+const secureCookie = false;
 app.use(cookieSession({
   name:'smartpark_session',
   keys:[process.env.SESSION_SECRET || 'dev-only-change-me'],

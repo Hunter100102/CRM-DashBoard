@@ -1,1 +1,129 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sourcing performance · SmartPark Operations</title><link rel="stylesheet" href="/css/app.css"><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script></head><body data-page="sourcing"><div class="layout"><aside class="sidebar"><div class="brand">SmartPark<small>Operations Control Center</small></div><nav class="nav"><a href="/overview.html" class=""><span class="ico">▦</span>Overview</a><a href="/sites.html" class=""><span class="ico">⌖</span>Sites</a><a href="/technicians.html" class=""><span class="ico">♟</span>Technicians</a><a href="/sourcing.html" class="active"><span class="ico">⏱</span>Sourcing</a><a href="/finance.html" class=""><span class="ico">$</span>Spend</a><a href="/analytics.html" class=""><span class="ico">◒</span>Analytics</a><a href="/settings.html" class=""><span class="ico">⚙</span>Connections</a></nav><div class="side-foot">Data source: <b id="dataSource">loading…</b><br>Prepared for Katy's operations workflow</div></aside><main class="main"><header class="topbar"><div style="display:flex;align-items:center;gap:10px"><button class="btn mobile" id="menu">☰</button><div class="title"><h1>Sourcing performance</h1><p>Measure how long it takes to find and schedule qualified technicians</p></div></div><div class="userbox"><button class="btn" id="logout">Sign out</button><div class="avatar">K</div></div></header><div class="content"><div class="filters"><select id="region" class="control"><option value="all">All regions</option></select><select id="status" class="control"><option value="all">All statuses</option></select><input id="from" class="control" type="date" title="Request date from"><input id="to" class="control" type="date" title="Request date to"></div><div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><article class="card kpi"><div class="label">Avg. sourcing time</div><div class="value" id="kSourceAvg">—</div><div class="hint">Start → technician assigned</div></article><article class="card kpi"><div class="label">Open sourcing</div><div class="value" id="kOpenSource">—</div><div class="hint">Sites still awaiting a tech</div></article><article class="card kpi"><div class="label">Fastest sourced</div><div class="value" id="kFast">—</div><div class="hint">Within current filters</div></article></div><section class="card panel" style="margin-top:14px"><div class="panel-head"><div><h2>Sourcing duration by site</h2><div class="sub">How quickly each site reached technician assignment</div></div></div><div class="chartbox"><canvas id="sourceChart"></canvas></div></section><section class="card table-card"><div class="table-head"><h2 style="margin:0;font-size:15px">Sourcing pipeline</h2></div><div class="table-wrap"><table><thead><tr><th>Site</th><th>Status</th><th>Requested</th><th>Sourcing start</th><th>Tech sourced</th><th>Sourcing days</th><th>Technician</th><th>Request → schedule</th></tr></thead><tbody id="sourceBody"></tbody></table></div></section></div></main></div><script src="/js/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Sourcing performance · SmartPark Operations</title>
+    <link rel="stylesheet" href="/css/app.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  </head>
+  <body data-page="sourcing">
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="brand">
+          SmartPark<small>Operations Control Center</small>
+        </div>
+        <nav class="nav">
+          <a href="/overview.html" class=""
+            ><span class="ico">▦</span>Overview</a
+          ><a href="/sites.html" class=""><span class="ico">⌖</span>Sites</a
+          ><a href="/technicians.html" class=""
+            ><span class="ico">♟</span>Technicians</a
+          ><a href="/sourcing.html" class="active"
+            ><span class="ico">⏱</span>Sourcing</a
+          ><a href="/finance.html" class=""><span class="ico">$</span>Spend</a
+          ><a href="/analytics.html" class=""
+            ><span class="ico">◒</span>Analytics</a
+          ><!--<a href="/settings.html" class=""
+            ><span class="ico">⚙</span>Connections</a
+          >-->
+        </nav>
+        <div class="side-foot">
+          Data source: <b id="dataSource">loading…</b><br />Prepared for Katy's
+          operations workflow
+        </div>
+      </aside>
+      <main class="main">
+        <header class="topbar">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <button class="btn mobile" id="menu">☰</button>
+            <div class="title">
+              <h1>Sourcing performance</h1>
+              <p>
+                Measure how long it takes to find and schedule qualified
+                technicians
+              </p>
+            </div>
+          </div>
+          <div class="userbox">
+            <button class="btn" id="logout">Sign out</button>
+            <div class="avatar">K</div>
+          </div>
+        </header>
+        <div class="content">
+          <div class="filters">
+            <select id="region" class="control">
+              <option value="all">All regions</option></select
+            ><select id="status" class="control">
+              <option value="all">All statuses</option></select
+            ><input
+              id="from"
+              class="control"
+              type="date"
+              title="Request date from"
+            /><input
+              id="to"
+              class="control"
+              type="date"
+              title="Request date to"
+            />
+          </div>
+          <div
+            class="kpis"
+            style="grid-template-columns: repeat(3, minmax(0, 1fr))"
+          >
+            <article class="card kpi">
+              <div class="label">Avg. sourcing time</div>
+              <div class="value" id="kSourceAvg">—</div>
+              <div class="hint">Start → technician assigned</div>
+            </article>
+            <article class="card kpi">
+              <div class="label">Open sourcing</div>
+              <div class="value" id="kOpenSource">—</div>
+              <div class="hint">Sites still awaiting a tech</div>
+            </article>
+            <article class="card kpi">
+              <div class="label">Fastest sourced</div>
+              <div class="value" id="kFast">—</div>
+              <div class="hint">Within current filters</div>
+            </article>
+          </div>
+          <section class="card panel" style="margin-top: 14px">
+            <div class="panel-head">
+              <div>
+                <h2>Sourcing duration by site</h2>
+                <div class="sub">
+                  How quickly each site reached technician assignment
+                </div>
+              </div>
+            </div>
+            <div class="chartbox"><canvas id="sourceChart"></canvas></div>
+          </section>
+          <section class="card table-card">
+            <div class="table-head">
+              <h2 style="margin: 0; font-size: 15px">Sourcing pipeline</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Site</th>
+                    <th>Status</th>
+                    <th>Requested</th>
+                    <th>Sourcing start</th>
+                    <th>Tech sourced</th>
+                    <th>Sourcing days</th>
+                    <th>Technician</th>
+                    <th>Request → schedule</th>
+                  </tr>
+                </thead>
+                <tbody id="sourceBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="/js/app.js"></script>
+  </body>
+</html>
