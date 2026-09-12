@@ -11,6 +11,8 @@ const aliases = {
   status:['status','site status','work order status'], request_date:['request_date','request date','created_date','created date','date received'],
   sourcing_started:['sourcing_started','sourcing started','source start','sourcing start'], technician_sourced:['technician_sourced','technician sourced','tech sourced','assigned date','technician assigned'],
   scheduled_date:['scheduled_date','scheduled date','schedule date','service date'], completed_date:['completed_date','completed date','completion date'],
+  scheduled_time:['scheduled_time','scheduled time','appointment time','service time'], priority:['priority','urgency'],
+  site_contact:['site_contact','site contact','contact name'], contact_phone:['contact_phone','contact phone','phone'],
   technician:['technician','tech','provider','technician name'], platform:['platform','source','vendor','marketplace'],
   labor_cost:['labor_cost','labor cost','technician cost','tech cost','pay','labor'], travel_cost:['travel_cost','travel cost','travel'], materials_cost:['materials_cost','materials cost','materials'],
   hours:['hours','labor hours','time on site','onsite hours'], revisit:['revisit','return visit','repeat visit'], issue:['issue','blocker','problem'], notes:['notes','comments']
@@ -64,4 +66,42 @@ async function getSites(){
   return JSON.parse(fs.readFileSync(demoPath,'utf8')).map(normalizeRow);
 }
 
-module.exports = { getSites, normalizeRow };
+function saveDemoSites(sites){
+  fs.writeFileSync(demoPath, JSON.stringify(sites, null, 2));
+  return sites;
+}
+
+function requireDemoSource(){
+  if((process.env.DATA_SOURCE || 'demo').toLowerCase() !== 'demo') {
+    const error = new Error('Editing is available in demo mode only until a writable Google Sheets connection is configured.');
+    error.status = 405;
+    throw error;
+  }
+}
+
+async function createSite(input){
+  requireDemoSource();
+  const sites = await getSites();
+  const record = normalizeRow(input || {});
+  if(!record.site_id) record.site_id = `SP-${Date.now().toString().slice(-7)}`;
+  if(!record.request_date) record.request_date = new Date().toISOString().slice(0,10);
+  if(!record.sourcing_started) record.sourcing_started = record.request_date;
+  if(!record.site_name) throw Object.assign(new Error('Site name is required.'), {status:400});
+  if(sites.some(site => site.site_id === record.site_id)) throw Object.assign(new Error('That work-order ID already exists.'), {status:409});
+  sites.push(record);
+  saveDemoSites(sites);
+  return record;
+}
+
+async function updateSite(siteId,input){
+  requireDemoSource();
+  const sites = await getSites();
+  const index = sites.findIndex(site => site.site_id === siteId);
+  if(index < 0) throw Object.assign(new Error('Install not found.'), {status:404});
+  const merged = {...sites[index], ...(input || {}), site_id:siteId};
+  sites[index] = normalizeRow(merged);
+  saveDemoSites(sites);
+  return sites[index];
+}
+
+module.exports = { getSites, normalizeRow, createSite, updateSite };

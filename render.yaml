@@ -12,7 +12,7 @@ services:
       - key: DATA_SOURCE
         value: demo
       - key: COOKIE_SECURE
-        value: false
+        value: true
       - key: SESSION_SECRET
         generateValue: true
       - key: ADMIN_USERNAME

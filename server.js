@@ -4,7 +4,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const cookieSession = require('cookie-session');
 const helmet = require('helmet');
-const { getSites } = require('./src/data');
+const { getSites, createSite, updateSite } = require('./src/data');
 const M = require('./src/metrics');
 
 const app = express();
@@ -13,7 +13,7 @@ app.set('trust proxy',1);
 app.use(helmet({contentSecurityPolicy:false}));
 app.use(express.json({limit:'1mb'}));
 app.use(express.urlencoded({extended:false}));
-const secureCookie = false;
+const secureCookie = String(process.env.COOKIE_SECURE || 'false').toLowerCase() === 'true';
 app.use(cookieSession({
   name:'smartpark_session',
   keys:[process.env.SESSION_SECRET || 'dev-only-change-me'],
@@ -22,6 +22,7 @@ app.use(cookieSession({
   sameSite:'lax',
   secure:secureCookie
 }));
+app.get('/settings.html',(req,res)=>res.redirect('/overview.html'));
 app.use(express.static(path.join(__dirname,'public')));
 
 function configuredHash(){ if(process.env.ADMIN_PASSWORD_HASH) return process.env.ADMIN_PASSWORD_HASH; if(process.env.NODE_ENV==='production') return null; return bcrypt.hashSync('ChangeMe-Now!',12); }
@@ -35,11 +36,14 @@ app.get('/api/health',(req,res)=>res.json({ok:true,source:process.env.DATA_SOURC
 
 async function loaded(req,res,next){ try{ req.sites=M.filterSites(await getSites(),req.query); next(); }catch(e){ next(e); } }
 app.get('/api/sites',auth,loaded,(req,res)=>res.json({sites:M.sourcing(req.sites)}));
+app.post('/api/sites',auth,async(req,res,next)=>{try{res.status(201).json({site:await createSite(req.body)});}catch(e){next(e);}});
+app.put('/api/sites/:siteId',auth,async(req,res,next)=>{try{res.json({site:await updateSite(req.params.siteId,req.body)});}catch(e){next(e);}});
+app.patch('/api/sites/:siteId/status',auth,async(req,res,next)=>{try{res.json({site:await updateSite(req.params.siteId,{status:req.body.status,completed_date:req.body.status==='Completed'?(req.body.completed_date||new Date().toISOString().slice(0,10)):req.body.completed_date})});}catch(e){next(e);}});
 app.get('/api/dashboard',auth,loaded,(req,res)=>res.json({summary:M.summary(req.sites),weekly:M.weekly(req.sites),statuses:M.statusBreakdown(req.sites),regions:M.regionBreakdown(req.sites),recent:M.sourcing(req.sites).sort((a,b)=>(b.request_date||'').localeCompare(a.request_date||'')).slice(0,8)}));
 app.get('/api/technicians',auth,loaded,(req,res)=>res.json({technicians:M.technicians(req.sites)}));
 app.get('/api/sourcing',auth,loaded,(req,res)=>{const rows=M.sourcing(req.sites);res.json({summary:{avg_sourcing_days:M.summary(req.sites).avg_sourcing_days,open_sourcing:rows.filter(x=>x.status.toLowerCase()==='sourcing').length,fastest_sourced:rows.filter(x=>x.sourcing_days!==null).sort((a,b)=>a.sourcing_days-b.sourcing_days)[0]||null},rows});});
 app.get('/api/finance',auth,loaded,(req,res)=>{ const tech=M.technicians(req.sites); res.json({summary:M.summary(req.sites),technicians:tech.sort((a,b)=>b.total_spend-a.total_spend),sites:M.sourcing(req.sites).sort((a,b)=>b.total_cost-a.total_cost)}); });
 app.get('/api/meta',auth,async(req,res,next)=>{try{const sites=await getSites();const uniq=k=>[...new Set(sites.map(s=>s[k]).filter(Boolean))].sort();res.json({regions:uniq('region'),statuses:uniq('status'),technicians:uniq('technician'),data_source:process.env.DATA_SOURCE||'demo'});}catch(e){next(e);}});
 
-app.use((err,req,res,next)=>{ console.error(err); res.status(500).json({error:'Dashboard data could not be loaded',detail:process.env.NODE_ENV==='production'?undefined:err.message}); });
+app.use((err,req,res,next)=>{ console.error(err); const status=err.status||500; res.status(status).json({error:status===500?'Dashboard data could not be loaded':err.message,detail:process.env.NODE_ENV==='production'?undefined:err.message}); });
 app.listen(PORT,()=>console.log(`SmartPark dashboard running on ${PORT}`));
