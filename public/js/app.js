@@ -11,6 +11,26 @@ async function loadMeta(){try{const m=await api('/api/meta'); const add=(id,item
 function bindFilters(fn){['region','status','technician','from','to','search'].forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener(id==='search'?'input':'change',()=>fn());});}
 function common(){ $('#logout')?.addEventListener('click',async()=>{await api('/api/auth/logout',{method:'POST'});location.href='/login.html'}); $('#menu')?.addEventListener('click',()=>$('.sidebar')?.classList.toggle('open')); }
 
+let activePageRenderer=null, refreshInFlight=false, lastUpdatedAt=0;
+function installRefreshStatus(){
+ const foot=$('.side-foot');
+ if(!foot||$('#liveRefreshStatus'))return;
+ const box=document.createElement('div');box.id='liveRefreshStatus';box.style.marginTop='8px';
+ box.innerHTML='<span>Live data: <b id="liveRefreshState">Loading…</b></span><br><button class="btn" id="refreshNow" type="button" style="margin-top:6px;padding:5px 8px;font-size:11px">Refresh now</button>';
+ foot.appendChild(box);
+ $('#refreshNow')?.addEventListener('click',()=>refreshCurrentPage(true));
+}
+function setRefreshState(text,failed=false){const state=$('#liveRefreshState');if(state){state.textContent=text;state.style.color=failed?'#d85959':'';}}
+async function refreshCurrentPage(force=false){
+ if(!activePageRenderer||refreshInFlight)return;
+ if(document.hidden&&!force)return;
+ if(!force&&(document.activeElement?.matches('input,select,textarea')||$('.modal.show')))return;
+ refreshInFlight=true;setRefreshState('Refreshing…');
+ try{await loadMeta();await activePageRenderer();lastUpdatedAt=Date.now();setRefreshState(`Updated ${new Date(lastUpdatedAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}`);}
+ catch(e){setRefreshState('Refresh failed; retrying',true);}
+ finally{refreshInFlight=false;}
+}
+
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const todayISO=()=>new Date().toISOString().slice(0,10);
 function daysFromToday(date){if(!date)return null;const start=new Date(`${todayISO()}T00:00:00`);const end=new Date(`${date}T00:00:00`);return Math.round((end-start)/86400000);}
@@ -39,5 +59,5 @@ async function finance(){destroyCharts();const d=await api('/api/finance'+query(
 
 async function analytics(){destroyCharts();const d=await api('/api/dashboard'+query()); const w=d.weekly;makeChart('volumeChart',{type:'bar',data:{labels:w.map(x=>x.week),datasets:[{label:'Submitted',data:w.map(x=>x.submitted),backgroundColor:'#2b7fff'},{label:'Completed',data:w.map(x=>x.completed),backgroundColor:'#1e9d69'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});makeChart('spendWeekChart',{type:'line',data:{labels:w.map(x=>x.week),datasets:[{label:'Spend',data:w.map(x=>x.spend),borderColor:'#7d62d9',backgroundColor:'rgba(125,98,217,.12)',fill:true,tension:.35}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}}});makeChart('regionChart',{type:'bar',data:{labels:d.regions.map(x=>x.region),datasets:[{data:d.regions.map(x=>x.count),backgroundColor:'#e2a63b'}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}});}
 
-async function init(){common(); await loadMeta(); const page=document.body.dataset.page; const fn={overview,sites,technicians:techs,sourcing,finance,analytics,installs}[page]; if(fn){await fn();bindFilters(fn);} if(page==='installs'){$('#newInstall')?.addEventListener('click',()=>openInstallModal());$('#closeModal')?.addEventListener('click',closeInstallModal);$('#cancelModal')?.addEventListener('click',closeInstallModal);$('#installModal')?.addEventListener('click',e=>{if(e.target.id==='installModal')closeInstallModal();});$('#installForm')?.addEventListener('submit',saveInstall);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeInstallModal();});} }
+async function init(){common();installRefreshStatus();await loadMeta();const source=($('#dataSource')?.textContent||'demo').trim().toLowerCase();const page=document.body.dataset.page;const fn={overview,sites,technicians:techs,sourcing,finance,analytics,installs}[page];if(fn){activePageRenderer=fn;bindFilters(fn);await refreshCurrentPage(true);if(source!=='demo'&&source!==''){setInterval(()=>refreshCurrentPage(),60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()-lastUpdatedAt>=60000)refreshCurrentPage();});}}if(page==='installs'){$('#newInstall')?.addEventListener('click',()=>openInstallModal());$('#closeModal')?.addEventListener('click',closeInstallModal);$('#cancelModal')?.addEventListener('click',closeInstallModal);$('#installModal')?.addEventListener('click',e=>{if(e.target.id==='installModal')closeInstallModal();});$('#installForm')?.addEventListener('submit',saveInstall);document.addEventListener('keydown',e=>{if(e.key==='Escape')closeInstallModal();});} }
 document.addEventListener('DOMContentLoaded',init);
